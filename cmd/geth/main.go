@@ -150,6 +150,7 @@ var (
 		utils.GpoMinGasPriceFlag,
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
+		utils.MinerNotifyFullFlag,
 		configFileFlag,
 	}
 
