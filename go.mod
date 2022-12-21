@@ -6,7 +6,6 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.7.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/aws/aws-sdk-go v1.25.48
-	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cespare/cp v0.1.0
 	github.com/cloudflare/cloudflare-go v0.10.2-0.20190916151808-a80f83b9add9
 	github.com/consensys/gurvy v0.3.8
@@ -20,7 +19,7 @@ require (
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.4.3
-	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3
+	github.com/golang/snappy v0.0.4
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
 	github.com/google/uuid v1.1.5
 	github.com/gorilla/websocket v1.4.2
@@ -45,7 +44,7 @@ require (
 	github.com/shirou/gopsutil v2.20.5+incompatible
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	github.com/stretchr/testify v1.7.0
-	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
