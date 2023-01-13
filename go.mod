@@ -3,7 +3,7 @@ module github.com/ethereum/go-ethereum
 go 1.15
 
 require (
-	github.com/Azure/azure-storage-blob-go v0.15.0
+	github.com/Azure/azure-storage-blob-go v0.7.0
 	github.com/VictoriaMetrics/fastcache v1.5.7
 	github.com/aws/aws-sdk-go-v2 v1.2.0
 	github.com/aws/aws-sdk-go-v2/config v1.1.1
@@ -23,10 +23,10 @@ require (
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.4.3
-	github.com/golang/snappy v0.0.4
+	github.com/golang/snappy v0.0.3-0.20201103224600-674baa8c7fc3
 	github.com/google/gofuzz v1.1.1-0.20200604201612-c04b05f3adfa
-	github.com/google/uuid v1.2.0
-	github.com/gorilla/websocket v1.5.0
+	github.com/google/uuid v1.1.5
+	github.com/gorilla/websocket v1.4.2
 	github.com/graph-gophers/graphql-go v0.0.0-20201113091052-beb923fada29
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/holiman/bloomfilter/v2 v2.0.3
@@ -42,7 +42,7 @@ require (
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7
-	github.com/prometheus/tsdb v0.10.0
+	github.com/prometheus/tsdb v0.7.1
 	github.com/rjeczalik/notify v0.9.1
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v2.20.5+incompatible
