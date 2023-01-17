@@ -1,0 +1,41 @@
+
+name: hive
+run-name: hive simulations
+on: 
+  workflow_dispatch:
+    inputs:
+      hive_extra_flags:
+        description: Extra flags passed to hive 
+        required: false
+        default:  ""
+        type: string 
+  pull_request:
+env:
+  HIVE_REPO: kcc-community/hive
+jobs:
+  hive-smoke-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout kcc's repo into kcc/
+        uses: actions/checkout@v3
+        with:
+          path: kcc
+      - name: checkout hive's repo into hive/
+        uses: actions/checkout@v3
+        with:
+          path: hive
+          repository: ${{ env.HIVE_REPO }} 
+          ref: master
+      - name: Install golang 
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.18.0'
+      - name: build kcc docker image 
+        run: cd $GITHUB_WORKSPACE/kcc && docker build -t kucoincommunitychain/kcc:latest . 
+      - name: build hive 
+        run: cd $GITHUB_WORKSPACE/hive && go build -v . 
+      - name: run smoke simulator 
+        run: |
+            cd $GITHUB_WORKSPACE/hive && ./hive --panic --client kcc_latest --sim 'kcc/(smoke|gas-block-limit)' \
+             ${{ inputs.hive_extra_flags }}
+
