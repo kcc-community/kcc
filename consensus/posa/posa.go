@@ -51,8 +51,10 @@ const (
 	inmemorySnapshots  = 128  // Number of recent vote snapshots to keep in memory
 	inmemorySignatures = 4096 // Number of recent block signatures to keep in memory
 
-	wiggleTime    = 500 * time.Millisecond // Random delay (per validator) to allow concurrent validators
-	maxValidators = 29                     // Max validators allowed to seal.
+	wiggleTime        = 500 * time.Millisecond // Random delay (per validator) to allow concurrent validators
+	minOutOfTurnDelay = 520 * time.Millisecond // Minimum delay for out-of-turn validators
+
+	maxValidators = 29 // Max validators allowed to seal.
 )
 
 // proof-of-stake-authority protocol constants.
@@ -1029,7 +1031,17 @@ func (c *POSA) Seal(chain consensus.ChainHeaderReader, block *types.Block, resul
 	if header.Difficulty.Cmp(diffNoTurn) == 0 {
 		// It's not our turn explicitly to sign, delay it a bit
 		wiggle := time.Duration(len(snap.Validators)/2+1) * wiggleTime
-		delay += time.Duration(rand.Int63n(int64(wiggle)))
+
+		// calculate out-of-turn delay
+		outOfTurnDelay := time.Duration(rand.Int63n(int64(wiggle)))
+
+		// if the out-of-turn delay is less than the minimum out-of-turn delay,
+		// use our estimated worst-case delay instead
+		if outOfTurnDelay < minOutOfTurnDelay {
+			delay += minOutOfTurnDelay
+		} else {
+			delay += outOfTurnDelay
+		}
 
 		log.Trace("Out-of-turn signing requested", "wiggle", common.PrettyDuration(wiggle))
 	}
