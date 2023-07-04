@@ -60,6 +60,10 @@ func (st *Stack) pop() (ret uint256.Int) {
 	return
 }
 
+func (st *Stack) Len() int {
+	return len(st.data)
+}
+
 func (st *Stack) len() int {
 	return len(st.data)
 }
