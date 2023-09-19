@@ -128,7 +128,7 @@ var (
 		IshikariPatch001Block: big.NewInt(12153317),
 		// Ishikari patch 002
 		IshikariPatch002Block: big.NewInt(12162886),
-
+		AmazonBlock:           big.NewInt(24217700),
 		// Ishikari patch001
 		// Fix minor bugs found in testnet
 
