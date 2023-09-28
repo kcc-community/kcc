@@ -64,6 +64,7 @@ var (
 		IshikariBlock:         big.NewInt(11171299),
 		IshikariPatch001Block: big.NewInt(11171299),
 		IshikariPatch002Block: big.NewInt(11171299),
+		AmazonBlock:           big.NewInt(24766075),
 		POSA: &POSAConfig{
 			Period: 3,
 			Epoch:  100,
