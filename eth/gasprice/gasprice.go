@@ -38,6 +38,8 @@ var (
 	DefaultMaxPrice    = big.NewInt(500 * params.GWei)
 	DefaultMinPrice    = big.NewInt(3 * params.GWei)
 	DefaultIgnorePrice = big.NewInt(2 * params.Wei)
+
+	DefaultGasUsedRatio = 0.9
 )
 
 type Config struct {
@@ -279,26 +281,33 @@ func (oracle *Oracle) getBlockValues(ctx context.Context, signer types.Signer, b
 		}
 		return
 	}
-	// Sort the transaction by effective tip in ascending sort.
-	txs := make([]*types.Transaction, len(block.Transactions()))
-	copy(txs, block.Transactions())
-	sorter := newSorter(txs, block.BaseFee())
-	sort.Sort(sorter)
 
 	var prices []*big.Int
-	for _, tx := range sorter.txs {
-		tip, _ := tx.EffectiveGasTip(block.BaseFee())
-		if ignoreUnder != nil && tip.Cmp(ignoreUnder) == -1 {
-			continue
-		}
-		sender, err := types.Sender(signer, tx)
-		if err == nil && sender != block.Coinbase() {
-			prices = append(prices, tip)
-			if len(prices) >= limit {
-				break
+	gasUsedRatio := float64(block.Header().GasUsed) / float64(block.Header().GasLimit)
+	if gasUsedRatio < DefaultGasUsedRatio {
+		prices = append(prices, []*big.Int{DefaultMinPrice, DefaultMinPrice, DefaultMinPrice}...)
+	} else {
+		// Sort the transaction by effective tip in ascending sort.
+		txs := make([]*types.Transaction, len(block.Transactions()))
+		copy(txs, block.Transactions())
+		sorter := newSorter(txs, block.BaseFee())
+		sort.Sort(sorter)
+
+		for _, tx := range sorter.txs {
+			tip, _ := tx.EffectiveGasTip(block.BaseFee())
+			if ignoreUnder != nil && tip.Cmp(ignoreUnder) == -1 {
+				continue
+			}
+			sender, err := types.Sender(signer, tx)
+			if err == nil && sender != block.Coinbase() {
+				prices = append(prices, tip)
+				if len(prices) >= limit {
+					break
+				}
 			}
 		}
 	}
+
 	select {
 	case result <- results{prices, nil}:
 	case <-quit:
