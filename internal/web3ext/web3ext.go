@@ -20,7 +20,7 @@ package web3ext
 var Modules = map[string]string{
 	"admin":    AdminJs,
 	"clique":   CliqueJs,
-	"posa":   	  POSAJs,
+	"posa":     POSAJs,
 	"ethash":   EthashJs,
 	"debug":    DebugJs,
 	"eth":      EthJs,
@@ -624,6 +624,11 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'getLogs',
 			call: 'eth_getLogs',
+			params: 1,
+		}),
+		new web3._extend.Method({
+			name: 'getBlockReceipts',
+			call: 'eth_getBlockReceipts',
 			params: 1,
 		}),
 	],

@@ -74,7 +74,6 @@ func (s *EthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 // @Junm https://github.com/MetaMask/metamask-extension/blob/v10.24.2/app/scripts/controllers/network/network.js#L175
 // Metamask detect EIP-1559 by checking whether the latest block has baseFeePerGas field.
 // Nevertheless, we still hide this api for now.
-//
 func (s *EthereumAPI) _MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, error) {
 	tipcap, err := s.b.SuggestGasTipCap(ctx)
 	if err != nil {
@@ -834,6 +833,34 @@ func (s *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Address
 	return res[:], state.Error()
 }
 
+// GetBlockReceipts returns the block receipts for the given block hash or number or tag.
+func (s *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
+	block, err := s.b.BlockByNumberOrHash(ctx, blockNrOrHash)
+	if block == nil || err != nil {
+		// When the block doesn't exist, the RPC method should return JSON null
+		// as per specification.
+		return nil, nil
+	}
+	receipts, err := s.b.GetReceipts(ctx, block.Hash())
+	if err != nil {
+		return nil, err
+	}
+	txs := block.Transactions()
+	if len(txs) != len(receipts) {
+		return nil, fmt.Errorf("receipts length mismatch: %d vs %d", len(txs), len(receipts))
+	}
+
+	// Derive the sender.
+	signer := types.MakeSigner(s.b.ChainConfig(), block.Number())
+
+	result := make([]map[string]interface{}, len(receipts))
+	for i, receipt := range receipts {
+		result[i] = marshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i)
+	}
+
+	return result, nil
+}
+
 // OverrideAccount indicates the overriding fields of account during the execution
 // of a message call.
 // Note, state and stateDiff can't be specified at the same time. If state is
@@ -1585,25 +1612,33 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		// as per specification.
 		return nil, nil
 	}
+	header, err := s.b.HeaderByHash(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
 	receipts, err := s.b.GetReceipts(ctx, blockHash)
 	if err != nil {
 		return nil, err
 	}
-	if len(receipts) <= int(index) {
+	if uint64(len(receipts)) <= index {
 		return nil, nil
 	}
 	receipt := receipts[index]
 
 	// Derive the sender.
-	bigblock := new(big.Int).SetUint64(blockNumber)
-	signer := types.MakeSigner(s.b.ChainConfig(), bigblock)
+	signer := types.MakeSigner(s.b.ChainConfig(), header.Number)
+	return marshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index)), nil
+}
+
+// marshalReceipt marshals a transaction receipt into a JSON object.
+func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int) map[string]interface{} {
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
+		"transactionHash":   tx.Hash(),
+		"transactionIndex":  hexutil.Uint64(txIndex),
 		"from":              from,
 		"to":                tx.To(),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
@@ -1612,18 +1647,9 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
 		"type":              hexutil.Uint(tx.Type()),
+		//"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
 	}
-	// Assign the effective gas price paid
-	if !s.b.ChainConfig().IsLondon(bigblock) {
-		fields["effectiveGasPrice"] = hexutil.Uint64(tx.GasPrice().Uint64())
-	} else {
-		header, err := s.b.HeaderByHash(ctx, blockHash)
-		if err != nil {
-			return nil, err
-		}
-		gasPrice := new(big.Int).Add(header.BaseFee, tx.EffectiveGasTipValue(header.BaseFee))
-		fields["effectiveGasPrice"] = hexutil.Uint64(gasPrice.Uint64())
-	}
+
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
 		fields["root"] = hexutil.Bytes(receipt.PostState)
@@ -1633,11 +1659,17 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 	if receipt.Logs == nil {
 		fields["logs"] = []*types.Log{}
 	}
+
+	// if tx.Type() == types.BlobTxType {
+	// 	fields["blobGasUsed"] = hexutil.Uint64(receipt.BlobGasUsed)
+	// 	fields["blobGasPrice"] = (*hexutil.Big)(receipt.BlobGasPrice)
+	// }
+
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	return fields, nil
+	return fields
 }
 
 // sign is a helper function that signs a transaction with the private key of the given address.
