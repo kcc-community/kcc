@@ -1647,7 +1647,7 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
 		"type":              hexutil.Uint(tx.Type()),
-		//"effectiveGasPrice": (*hexutil.Big)(receipt.EffectiveGasPrice),
+		"effectiveGasPrice": hexutil.Uint64(tx.GasPrice().Uint64()),
 	}
 
 	// Assign receipt status or post state.
