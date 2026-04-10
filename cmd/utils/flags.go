@@ -254,6 +254,12 @@ var (
 		Value:    2048,
 		Category: flags.EthCategory,
 	}
+	BlockAmountReservedFlag = &cli.Uint64Flag{
+		Name:     "block-amount-reserved",
+		Usage:    "Sets the number of recent blocks to retain when running offline block pruning (minimum 100000, default ~35 days at 3s/block)",
+		Value:    1_000_000,
+		Category: flags.EthCategory,
+	}
 	OverrideTerminalTotalDifficulty = &flags.BigFlag{
 		Name:     "override.terminaltotaldifficulty",
 		Usage:    "Manually specify TerminalTotalDifficulty, overriding the bundled setting",

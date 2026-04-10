@@ -77,6 +77,41 @@ the trie clean cache with default directory will be deleted.
 `,
 			},
 			{
+				Name:      "prune-block",
+				Usage:     "Prune stale ancient block data to reclaim disk space",
+				ArgsUsage: "",
+				Action:    pruneBlock,
+				Flags: flags.Merge([]cli.Flag{
+					utils.BlockAmountReservedFlag,
+				}, utils.NetworkFlags, utils.DatabasePathFlags),
+				Description: `
+geth snapshot prune-block
+
+will prune historical block data (headers, bodies, receipts, total difficulty
+and canonical hashes) from the freezer / ancient store, keeping only the most
+recent blocks specified by --block-amount-reserved.
+
+This command is intended for validator nodes and other non-RPC-serving full
+nodes that do not need to answer historical queries. After pruning, the node
+is still able to produce and validate new blocks, but requests for pruned
+historical data (eth_getBlockByNumber with an old number, eth_getTransactionByHash
+for a pruned transaction, etc.) will fail.
+
+The default reserved window is 1,000,000 blocks (~35 days at 3s/block on KCC
+mainnet). The minimum allowed value is 100,000 blocks, chosen to safely cover
+the KCC POSA consensus layer's worst-case header walk-back depth; lowering
+this bound would risk breaking the validator's ability to verify new headers
+after restart.
+
+WARNING:
+  - This command must be run with geth fully stopped.
+  - The operation advances the freezer tail in place; it is idempotent and
+    can be re-run later with a larger reserved window if needed.
+  - Do not run this on an archive node, a node serving public RPC, or a block
+    explorer backend.
+`,
+			},
+			{
 				Name:      "verify-state",
 				Usage:     "Recalculate state hash based on the snapshot for verification",
 				ArgsUsage: "<root>",
@@ -189,6 +224,34 @@ func pruneState(ctx *cli.Context) error {
 	}
 	if err = pruner.Prune(targetRoot); err != nil {
 		log.Error("Failed to prune state", "err", err)
+		return err
+	}
+	return nil
+}
+
+// pruneBlock is the entry point for the `geth snapshot prune-block` command.
+// It opens the chain database in write mode and advances the ancient store
+// tail so that only the last --block-amount-reserved blocks remain in the
+// freezer.
+func pruneBlock(ctx *cli.Context) error {
+	if ctx.NArg() > 0 {
+		log.Error("Unexpected positional arguments")
+		return errors.New("prune-block does not accept positional arguments")
+	}
+	stack, _ := makeConfigNode(ctx)
+	defer stack.Close()
+
+	chaindb := utils.MakeChainDatabase(ctx, stack, false)
+	defer chaindb.Close()
+
+	reserved := ctx.Uint64(utils.BlockAmountReservedFlag.Name)
+	bp, err := pruner.NewBlockPruner(chaindb, reserved)
+	if err != nil {
+		log.Error("Failed to create block pruner", "err", err)
+		return err
+	}
+	if err := bp.Prune(); err != nil {
+		log.Error("Failed to prune blocks", "err", err)
 		return err
 	}
 	return nil
