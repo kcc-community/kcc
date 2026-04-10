@@ -15,7 +15,10 @@ RUN cd /go-ethereum && go mod download
 
 ADD . /go-ethereum
 RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
-RUN go install github.com/go-delve/delve/cmd/dlv@latest 
+# Pin delve to a version that still supports Go 1.21. Delve v1.26.0+
+# raised the minimum Go requirement to 1.24 and breaks this image build
+# otherwise. Bump this together with the golang:1.21-alpine base above.
+RUN go install github.com/go-delve/delve/cmd/dlv@v1.22.1
 
 # Pull Geth into a second stage deploy alpine container
 FROM alpine:latest
