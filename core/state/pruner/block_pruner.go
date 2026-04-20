@@ -143,6 +143,40 @@ func (p *BlockPruner) Prune() error {
 		"blocksToDelete", newTail-oldTail,
 		"amountReserved", p.amountReserved)
 
+	// Preserve the genesis block in the kv store before truncating the
+	// ancient tail. The freezer's TruncateTail(newTail) hides every item
+	// numbered below newTail, including block 0. After such truncation,
+	// geth refuses to start with:
+	//
+	//   Fatal: Failed to register the Ethereum service:
+	//   failed to retrieve genesis from ancient out of bounds
+	//
+	// because the startup code reads genesis via rawdb.ReadBlock(hash, 0)
+	// and the ancient lookup returns nothing once tail > 0. The kv-store
+	// path is the natural fallback for rawdb readers, so we copy genesis
+	// (canonical hash, header, body, total difficulty) back into the kv
+	// tables. Receipts are omitted because the genesis block has no
+	// transactions.
+	//
+	// This read must happen before TruncateTail: afterwards, the ancient
+	// lookup for block 0 will fail and we would be writing zeroes.
+	genesisHash := rawdb.ReadCanonicalHash(p.db, 0)
+	if genesisHash == (common.Hash{}) {
+		return errors.New("failed to read genesis canonical hash; refusing to truncate")
+	}
+	genesisHeader := rawdb.ReadHeader(p.db, genesisHash, 0)
+	if genesisHeader == nil {
+		return fmt.Errorf("failed to read genesis header for %s; refusing to truncate", genesisHash.Hex())
+	}
+	genesisBody := rawdb.ReadBody(p.db, genesisHash, 0)
+	if genesisBody == nil {
+		return fmt.Errorf("failed to read genesis body for %s; refusing to truncate", genesisHash.Hex())
+	}
+	genesisTd := rawdb.ReadTd(p.db, genesisHash, 0)
+	if genesisTd == nil {
+		return fmt.Errorf("failed to read genesis total difficulty for %s; refusing to truncate", genesisHash.Hex())
+	}
+
 	// Perform the in-place tail truncation on the ancient store. This is a
 	// local operation that drops data files on disk once the truncated range
 	// spans an entire file (2 GiB per file by default), and hides partial
@@ -155,6 +189,16 @@ func (p *BlockPruner) Prune() error {
 		return fmt.Errorf("failed to sync ancient store after truncation: %w", err)
 	}
 	log.Info("Ancient tail truncated", "newTail", newTail, "blocksDeleted", newTail-oldTail)
+
+	// Write genesis back to the kv store. This is idempotent; repeated
+	// invocations with the same genesis data simply overwrite the same
+	// keys. Placement matters: it must happen after TruncateTail so that
+	// genesis survives as the only block below newTail.
+	rawdb.WriteCanonicalHash(p.db, genesisHash, 0)
+	rawdb.WriteHeader(p.db, genesisHeader)
+	rawdb.WriteBody(p.db, genesisHash, 0, genesisBody)
+	rawdb.WriteTd(p.db, genesisHash, 0, genesisTd)
+	log.Info("Genesis block preserved in kv store", "hash", genesisHash.Hex())
 
 	// Make sure the transaction index tail is not pointing below the new
 	// ancient tail. Otherwise, when the node starts with --txlookuplimit,
