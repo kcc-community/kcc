@@ -797,6 +797,13 @@ func dbHasLegacyReceipts(db ethdb.Database, firstIdx uint64) (bool, uint64, erro
 	if numAncients < 1 {
 		return false, 0, nil
 	}
+	// If offline block-pruning has advanced the freezer tail past firstIdx,
+	// scanning from position 0 will fail with "out of bounds" on the first
+	// Ancient() call. Clamp firstIdx to the current tail so we scan only
+	// the accessible range.
+	if tail, terr := db.Tail(); terr == nil && tail > firstIdx {
+		firstIdx = tail
+	}
 	if firstIdx >= numAncients {
 		return false, firstIdx, nil
 	}
