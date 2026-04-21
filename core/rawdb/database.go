@@ -226,14 +226,22 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 	// it to the freezer content.
 	if kvgenesis, _ := db.Get(headerHashKey(0)); len(kvgenesis) > 0 {
 		if frozen, _ := frdb.Ancients(); frozen > 0 {
-			// If the freezer already contains something, ensure that the genesis blocks
-			// match, otherwise we might mix up freezers across chains and destroy both
-			// the freezer and the key-value store.
-			frgenesis, err := frdb.Ancient(chainFreezerHashTable, 0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to retrieve genesis from ancient %v", err)
-			} else if !bytes.Equal(kvgenesis, frgenesis) {
-				return nil, fmt.Errorf("genesis mismatch: %#x (leveldb) != %#x (ancients)", kvgenesis, frgenesis)
+			// If offline block-pruning has advanced the freezer tail past
+			// block 0, the ancient store can no longer produce genesis;
+			// the kv store is the sole source of truth in that case and
+			// snapshot prune-block copied genesis there before truncating.
+			// Skip the ancient cross-check when we detect a non-zero tail.
+			frtail, _ := frdb.Tail()
+			if frtail == 0 {
+				// Genesis still lives in ancient; cross-validate the genesis
+				// blocks match, otherwise we might mix up freezers across
+				// chains and destroy both the freezer and the key-value store.
+				frgenesis, err := frdb.Ancient(chainFreezerHashTable, 0)
+				if err != nil {
+					return nil, fmt.Errorf("failed to retrieve genesis from ancient %v", err)
+				} else if !bytes.Equal(kvgenesis, frgenesis) {
+					return nil, fmt.Errorf("genesis mismatch: %#x (leveldb) != %#x (ancients)", kvgenesis, frgenesis)
+				}
 			}
 			// Key-value store and freezer belong to the same network. Ensure that they
 			// are contiguous, otherwise we might end up with a non-functional freezer.
